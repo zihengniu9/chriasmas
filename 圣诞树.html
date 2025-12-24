@@ -241,7 +241,7 @@
         }
     </style>
     
-    <!-- Standard CDNs -->
+    <!-- Standard CDNs (Reverting to JSDelivr for stability) -->
     <script type="importmap">
         {
             "imports": {
@@ -716,7 +716,6 @@
                 const r = rMax * (0.6 + Math.random() * 0.4); 
                 this.posTree.set(Math.cos(angle) * r, y, Math.sin(angle) * r);
 
-                // SCATTER POSITION LOGIC
                 if (this.isDust) {
                     this.posScatter.set((Math.random()-0.5)*120, (Math.random()-0.5)*80, (Math.random()*50)-10);
                 } else if (this.type === 'PHOTO') {
