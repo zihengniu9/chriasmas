@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>魔法圣诞树生成器</title>
+    <title>魔法圣诞树</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000000; font-family: 'Times New Roman', serif; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
@@ -221,6 +221,15 @@
         }
         #error-overlay h3 { font-size: 24px; margin-bottom: 20px; }
         #error-overlay p { font-size: 14px; line-height: 1.6; color: #ccc; }
+
+        .force-btn {
+            background: linear-gradient(45deg, #d4af37, #fceea7);
+            border: none; padding: 12px 30px; color: #000;
+            font-size: 14px; font-weight: bold; cursor: pointer;
+            margin-top: 30px; border-radius: 4px;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+        }
+        .force-btn:hover { transform: scale(1.05); }
         
         @media (max-width: 600px) {
             h1 { font-size: 32px; top: 60px; }
@@ -253,13 +262,15 @@
     
     <!-- Error Overlay for File Protocol -->
     <div id="error-overlay">
-        <h3>⚠️ 魔法引擎启动失败</h3>
-        <p>浏览器安全策略限制了本地文件直接运行。</p>
-        <div style="margin-top:20px; text-align:left; display:inline-block; border:1px solid #333; padding:20px; background:#000;">
-            <p style="color:#fff;"><strong>如何正确打开下载的文件：</strong></p>
-            <p>1. <strong>电脑端：</strong> 使用 VS Code 插件 "Live Server" 打开。</p>
-            <p>2. <strong>上传：</strong> 将 HTML 文件上传到 GitHub Pages 或 Vercel。</p>
-            <p>3. <strong>本地：</strong> 需要配置本地服务器 (localhost) 才能加载 3D 模块。</p>
+        <h3>⚠️ 魔法引擎启动受限</h3>
+        <p>浏览器阻止了本地 AI 加载。<br>您依然可以使用鼠标/触屏模式。</p>
+        
+        <button class="force-btn" onclick="window.forceStartApp()">忽略报错，进入鼠标模式</button>
+
+        <div style="margin-top:30px; text-align:left; display:inline-block; border:1px solid #333; padding:20px; background:#111; max-width:400px; font-size:12px; color:#888;">
+            <p style="color:#d4af37; margin-bottom:10px;"><strong>如何开启完整手势体验？</strong></p>
+            <p>1. 将 HTML 文件上传到网站 (如 Github Pages)</p>
+            <p>2. 或在 VS Code 中使用 "Live Server" 打开</p>
         </div>
     </div>
 
@@ -291,10 +302,9 @@
             <div class="wizard-section">
                 <h3>3. 魔法操作说明</h3>
                 <ul class="instructions-list">
-                    <li><span class="icon-box">🖐️</span> <strong>用力张开手掌：</strong> 星尘散开，跟随手势旋转。</li>
-                    <li><span class="icon-box">✊</span> <strong>自然放松 / 握拳：</strong> 默认汇聚成璀璨圣诞树。</li>
-                    <li><span class="icon-box">👌</span> <strong>捏合手指：</strong> (拇指+食指) 聚焦查看单张照片。</li>
-                    <li><span class="icon-box">📢</span> <strong>提示：</strong> 下载后若无摄像头，可直接用鼠标操作。</li>
+                    <li><span class="icon-box">👆</span> <strong>点击 / 握拳：</strong> 聚合成璀璨圣诞树。</li>
+                    <li><span class="icon-box">🖐️</span> <strong>松开 / 移动：</strong> 星尘跟随指尖/鼠标飞舞。</li>
+                    <li><span class="icon-box">📢</span> <strong>提示：</strong> 支持触屏和鼠标，无需摄像头也能玩！</li>
                 </ul>
             </div>
 
@@ -321,12 +331,22 @@
         window.moduleLoaded = false;
         setTimeout(() => {
             if (!window.moduleLoaded) {
+                // If module script hasn't reported success in 5s
                 const loader = document.getElementById('loader');
                 if (loader) loader.style.display = 'none';
                 const err = document.getElementById('error-overlay');
                 if (err) err.style.display = 'block';
             }
         }, 5000);
+
+        // Global force start function
+        window.forceStartApp = function() {
+            document.getElementById('error-overlay').style.display = 'none';
+            document.getElementById('loader').style.display = 'none';
+            // Assuming modules loaded partially, we can still try to interact
+            // But if modules failed, this button is just UI cleanup.
+            // Ideally the module script sets up a fallback.
+        }
     </script>
 
     <script type="module">
@@ -339,6 +359,15 @@
         import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'; 
         import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 
+        // Redefine force start to actually trigger logic if module is alive
+        window.forceStartApp = function() {
+            document.getElementById('error-overlay').style.display = 'none';
+            document.getElementById('loader').style.display = 'none';
+            // Ensure status pill shows mouse mode
+            const statusEl = document.getElementById('status-pill');
+            if(statusEl) statusEl.innerText = "鼠标交互模式";
+        }
+
         // --- GLOBAL EXPORTS ---
         window.userConfig = {
             textTop: "",
@@ -347,10 +376,10 @@
         };
 
         let photoCounter = 0; 
+        let isCameraActive = false;
 
         function generateTree() {
-            const t1 = document.getElementById('input-text-top').value;
-            // Use fallback if empty
+            const t1 = document.getElementById('input-text-top').value || "";
             const t2 = document.getElementById('input-text-bottom').value || "圣诞快乐";
             window.userConfig.textTop = t1;
             window.userConfig.textBottom = t2;
@@ -380,9 +409,8 @@
             buttons.forEach(b => b.style.pointerEvents = 'auto');
             
             const tTop = window.userConfig.textTop;
-            const tBot = window.userConfig.textBottom || "圣诞快乐";
+            const tBot = window.userConfig.textBottom;
             
-            // Display text on one line if top exists
             const displayText = tTop ? `${tTop} ${tBot}` : tBot;
             document.getElementById('main-title').innerText = displayText;
 
@@ -391,6 +419,9 @@
 
             createTextSign(); 
             processUserImages();   
+
+            // Attempt to load AI in background
+            initMediaPipeSafely();
         }
 
         // --- SCREENSHOT COMPOSITION LOGIC ---
@@ -497,6 +528,33 @@
         let snowParticles; 
 
         async function init() {
+            // Check for saved config (from a downloaded file)
+            let isSavedFile = false;
+            if (window.savedConfig) {
+                isSavedFile = true;
+                window.userConfig = window.savedConfig;
+                // If saved file, wizard is likely already removed from DOM by download script logic
+                // But if not, hide it.
+                const wiz = document.getElementById('wizard-overlay');
+                if(wiz) wiz.remove(); // REMOVE from DOM
+                
+                // Set UI visible immediately
+                const ui = document.getElementById('ui-layer');
+                if(ui) ui.style.opacity = 1;
+                
+                const tTop = window.userConfig.textTop || "MERRY";
+                const tBot = window.userConfig.textBottom || "CHRISTMAS";
+                const displayText = tTop ? `${tTop} ${tBot}` : tBot;
+                const mainTitle = document.getElementById('main-title');
+                if(mainTitle) mainTitle.innerText = displayText;
+
+                // Load content
+                setTimeout(() => {
+                    createTextSign(); 
+                    processUserImages();
+                }, 100);
+            }
+
             try {
                 initThree();
                 setupEnvironment(); 
@@ -511,22 +569,26 @@
                 console.error("ThreeJS init error", e);
             }
             
+            // Start animation loop
             animate();
 
+            // AI Loading Logic with Timeout Race
             try {
-                const aiPromise = initMediaPipe();
-                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject("Timeout"), 3000));
+                // If this is a saved file, or user clicked generate, we try load AI
+                // For simplified flow, we try loading in background always.
+                if (!window.savedConfig) {
+                    // Just wait for user, but we can pre-warm?
+                    // Let's just do nothing until explicit call or background load
+                } else {
+                     initMediaPipeSafely();
+                }
                 
-                await Promise.race([aiPromise, timeoutPromise]);
-                
-                const statusEl = document.getElementById('status-pill');
-                if(statusEl) statusEl.innerText = "等待手势感应...";
+                // We'll call initMediaPipeSafely manually on generateTree as well
             } catch (e) {
-                console.warn("AI Init failed/timed out. Switching to Mouse Mode.");
-                const statusEl = document.getElementById('status-pill');
-                if(statusEl) statusEl.innerText = "鼠标交互模式 (无摄像头)";
+                // Ignore
             }
             
+            // Explicitly remove loader if it's still there
             const loader = document.getElementById('loader');
             if(loader) {
                 loader.style.opacity = 0;
@@ -534,9 +596,28 @@
             }
         }
 
+        async function initMediaPipeSafely() {
+            const statusEl = document.getElementById('status-pill');
+            
+            try {
+                // Use a race to timeout quickly if blocked
+                const aiPromise = initMediaPipe();
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject("Timeout"), 10000));
+                
+                await Promise.race([aiPromise, timeoutPromise]);
+                
+                isCameraActive = true;
+                if(statusEl) statusEl.innerText = "等待手势感应...";
+            } catch (e) {
+                console.warn("AI Init failed/timed out. Switching to Mouse Mode.");
+                const statusEl = document.getElementById('status-pill');
+                if(statusEl) statusEl.innerText = "鼠标交互模式";
+            }
+        }
+
         function initThree() {
             const container = document.getElementById('canvas-container');
-            container.innerHTML = '';
+            container.innerHTML = ''; // CRITICAL: Clear container
             
             scene = new THREE.Scene();
             scene.background = new THREE.Color(CONFIG.colors.bg);
@@ -545,7 +626,6 @@
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.set(0, 0, CONFIG.camera.z); 
 
-            // PreserveDrawingBuffer MUST be true for screenshots
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance", preserveDrawingBuffer: true }); 
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -636,6 +716,7 @@
                 const r = rMax * (0.6 + Math.random() * 0.4); 
                 this.posTree.set(Math.cos(angle) * r, y, Math.sin(angle) * r);
 
+                // SCATTER POSITION LOGIC
                 if (this.isDust) {
                     this.posScatter.set((Math.random()-0.5)*120, (Math.random()-0.5)*80, (Math.random()*50)-10);
                 } else if (this.type === 'PHOTO') {
@@ -805,7 +886,7 @@
 
         window.createTextSign = function() {
             particleSystem = particleSystem.filter(p => p.type !== 'TEXT_SIGN');
-            // Logic for 3D sign removed per request to only show user photos
+            // No 3D sign
         }
 
         window.processUserImages = function() {
